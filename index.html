@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tamper-Proof EVM | Next Generation Voting</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #ffffff;
+            color: #1a1a1a;
+            overflow-x: hidden;
+            line-height: 1.6;
+        }
+
+        .tri-stripe {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 8px;
+            background: linear-gradient(90deg, #FF9933 0%, #FF9933 33.33%, #FFFFFF 33.33%, #FFFFFF 66.66%, #138808 66.66%, #138808 100%);
+            z-index: 1000;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            overflow: hidden;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(255, 153, 51, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 50%, rgba(19, 136, 8, 0.1) 0%, transparent 50%);
+            animation: pulse 8s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        .hero-3d-container {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            opacity: 0.15;
+        }
+
+        #evm-3d-canvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 2;
+            max-width: 1200px;
+            padding: 40px 20px;
+            text-align: center;
+            animation: fadeInUp 1s ease-out;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .code-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #FF9933, #ff7700);
+            color: white;
+            padding: 8px 24px;
+            border-radius: 25px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            letter-spacing: 1px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 15px rgba(255, 153, 51, 0.3);
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-5px); }
+        }
+
+        h1 {
+            font-size: clamp(2.5rem, 6vw, 5rem);
+            font-weight: 700;
+            color: #1a1a1a;
+            margin-bottom: 20px;
+            letter-spacing: -2px;
+            line-height: 1.1;
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #FF9933 0%, #138808 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            position: relative;
+        }
+
+        .hero-subtitle {
+            font-size: clamp(1.1rem, 2vw, 1.4rem);
+            color: #6c757d;
+            max-width: 700px;
+            margin: 0 auto 40px;
+            font-weight: 400;
+            line-height: 1.8;
+        }
+
+        .hero-stats {
+            display: flex;
+            gap: 40px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 50px;
+        }
+
+        .stat {
+            text-align: center;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 16px;
+            backdrop-filter: blur(10px);
+            min-width: 140px;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .stat:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #138808;
+            display: block;
+            line-height: 1;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: #6c757d;
+            margin-top: 8px;
+        }
+
+        .section {
+            padding: 100px 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .section-header {
+            text-align: center;
+            margin-bottom: 60px;
+            animation: fadeIn 1s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .section-tag {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #FF9933;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 15px;
+        }
+
+        .section-title {
+            font-size: clamp(2rem, 4vw, 3rem);
+            font-weight: 700;
+            color: #1a1a1a;
+            margin-bottom: 20px;
+            letter-spacing: -1px;
+        }
+
+        .section-desc {
+            font-size: 1.1rem;
+            color: #6c757d;
+            max-width: 700px;
+            margin: 0 auto;
+            line-height: 1.8;
+        }
+
+        .main-video-section {
+            background: linear-gradient(180deg, #0a0a0a 0%, #1a1a1a 50%, #0a0a0a 100%);
+            padding: 120px 20px;
+            margin: 0;
+            position: relative;
+        }
+
+        .main-video-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 30%, rgba(255, 153, 51, 0.15) 0%, transparent 40%),
+                radial-gradient(circle at 80% 70%, rgba(19, 136, 8, 0.15) 0%, transparent 40%);
+            pointer-events: none;
+        }
+
+        .main-video-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            text-align: center;
+            position: relative;
+            z-index: 1;
+        }
+
+        .main-video-header {
+            margin-bottom: 60px;
+        }
+
+        .main-video-title {
+            font-size: clamp(2.5rem, 5vw, 4rem);
+            font-weight: 700;
+            color: white;
+            margin-bottom: 20px;
+            letter-spacing: -1px;
+        }
+
+        .main-video-desc {
+            font-size: 1.3rem;
+            color: #cbd5e0;
+            max-width: 900px;
+            margin: 0 auto;
+            line-height: 1.8;
+        }
+
+        .video-wrapper {
+            position: relative;
+            padding-bottom: 56.25%;
+            height: 0;
+            overflow: hidden;
+            border-radius: 24px;
+            box-shadow: 
+                0 0 0 1px rgba(255, 255, 255, 0.1),
+                0 30px 80px rgba(0, 0, 0, 0.6),
+                0 0 100px rgba(255, 153, 51, 0.2);
+            background: #000;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            margin-bottom: 100px;
+        }
+
+        .video-wrapper:hover {
+            transform: translateY(-5px);
+            box-shadow: 
+                0 0 0 1px rgba(255, 255, 255, 0.2),
+                0 40px 100px rgba(0, 0, 0, 0.7),
+                0 0 120px rgba(255, 153, 51, 0.3);
+        }
+
+        .video-wrapper video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        .video-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 30px;
+            margin-top: 0;
+            padding-top: 40px;
+            border-top: 2px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .video-grid::before {
+            content: 'Additional Footage';
+            position: absolute;
+            top: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #1a1a1a;
+            padding: 5px 20px;
+            color: #FF9933;
+            font-size: 0.85rem;
+            font-weight: 600;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        .video-card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            overflow: hidden;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            transition: transform 0.3s ease, border-color 0.3s ease;
+            position: relative;
+        }
+
+        .video-card:hover {
+            transform: translateY(-8px);
+            border-color: rgba(255, 153, 51, 0.5);
+        }
+
+        .video-card video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .video-caption {
+            padding: 20px;
+            font-size: 0.95rem;
+            color: #adb5bd;
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+        }
+
+        .demo-section {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 30px;
+            padding: 60px 40px;
+            margin: 80px 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .demo-section::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, rgba(255, 153, 51, 0.1) 0%, transparent 70%);
+            animation: rotate 20s linear infinite;
+        }
+
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .demo-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            align-items: center;
+            margin-top: 40px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .demo-gif {
+            width: 100%;
+            border-radius: 16px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+            transition: transform 0.3s ease;
+        }
+
+        .demo-gif:hover {
+            transform: scale(1.02);
+        }
+
+        .demo-text {
+            padding: 20px;
+        }
+
+        .demo-text h3 {
+            font-size: 1.8rem;
+            font-weight: 600;
+            color: #1a1a1a;
+            margin-bottom: 20px;
+        }
+
+        .demo-text p {
+            font-size: 1.1rem;
+            color: #6c757d;
+            line-height: 1.8;
+            margin-bottom: 15px;
+        }
+
+        .feature-list {
+            list-style: none;
+            margin-top: 20px;
+        }
+
+        .feature-list li {
+            padding: 12px 0;
+            padding-left: 35px;
+            position: relative;
+            color: #495057;
+            font-size: 1.05rem;
+            transition: transform 0.2s ease;
+        }
+
+        .feature-list li:hover {
+            transform: translateX(5px);
+        }
+
+        .feature-list li::before {
+            content: '✓';
+            position: absolute;
+            left: 0;
+            color: #138808;
+            font-weight: 700;
+            font-size: 1.3rem;
+        }
+
+        .hackathon-gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 30px;
+            margin-top: 60px;
+            justify-items: center;
+        }
+        
+        .hackathon-gallery .gallery-item:last-child {
+            grid-column: 1 / -1;
+            max-width: 400px;
+            justify-self: center;
+        }
+
+        .gallery-item {
+            background: white;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .gallery-item:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+        }
+
+        .gallery-image {
+            width: 100%;
+            aspect-ratio: 4/3;
+            object-fit: cover;
+            background: #f8f9fa;
+            transition: transform 0.5s ease;
+        }
+
+        .gallery-item:hover .gallery-image {
+            transform: scale(1.05);
+        }
+
+        .gallery-caption {
+            padding: 25px;
+        }
+
+        .gallery-caption h3 {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #1a1a1a;
+            margin-bottom: 8px;
+        }
+
+        .gallery-caption p {
+            font-size: 0.95rem;
+            color: #6c757d;
+            line-height: 1.6;
+        }
+
+        .tech-showcase {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            margin: 60px 0;
+            align-items: center;
+        }
+
+        .circuit-diagram {
+            width: 100%;
+            border-radius: 20px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.1);
+            background: white;
+            padding: 30px;
+            transition: transform 0.3s ease;
+        }
+
+        .circuit-diagram:hover {
+            transform: translateY(-5px);
+        }
+
+        .circuit-diagram img {
+            width: 100%;
+            height: auto;
+            display: block;
+            border-radius: 12px;
+        }
+
+        .tech-specs {
+            background: white;
+            border: 2px solid #e9ecef;
+            border-radius: 20px;
+            padding: 40px;
+            transition: box-shadow 0.3s ease;
+        }
+
+        .tech-specs:hover {
+            box-shadow: 0 8px 30px rgba(0,0,0,0.1);
+        }
+
+        .spec-item {
+            display: flex;
+            align-items: start;
+            gap: 15px;
+            margin-bottom: 25px;
+            padding-bottom: 25px;
+            border-bottom: 1px solid #e9ecef;
+            transition: transform 0.2s ease;
+        }
+
+        .spec-item:hover {
+            transform: translateX(5px);
+        }
+
+        .spec-item:last-child {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+
+        .spec-icon {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #FF9933, #138808);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            color: white;
+            font-weight: 700;
+            font-size: 1.2rem;
+            box-shadow: 0 4px 15px rgba(255, 153, 51, 0.3);
+        }
+
+        .spec-content h4 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #1a1a1a;
+            margin-bottom: 5px;
+        }
+
+        .spec-content p {
+            font-size: 0.95rem;
+            color: #6c757d;
+            line-height: 1.6;
+        }
+
+        .cta-section {
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+            border-radius: 30px;
+            padding: 80px 40px;
+            text-align: center;
+            color: white;
+            margin: 80px 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .cta-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 30% 50%, rgba(255, 153, 51, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 70% 50%, rgba(19, 136, 8, 0.1) 0%, transparent 50%);
+        }
+
+        .cta-title {
+            font-size: clamp(2rem, 4vw, 3rem);
+            font-weight: 700;
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .cta-text {
+            font-size: 1.2rem;
+            color: #adb5bd;
+            margin-bottom: 40px;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            line-height: 1.8;
+            position: relative;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+            position: relative;
+        }
+
+        .btn {
+            padding: 18px 45px;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 1rem;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            display: inline-block;
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #FF9933, #138808);
+            color: white;
+            box-shadow: 0 8px 20px rgba(255, 153, 51, 0.4);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 30px rgba(255, 153, 51, 0.5);
+        }
+
+        .btn-secondary {
+            background: white;
+            color: #1a1a1a;
+        }
+
+        .btn-secondary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(255,255,255,0.3);
+        }
+
+        footer {
+            background: #f8f9fa;
+            padding: 60px 20px;
+            text-align: center;
+            border-top: 1px solid #e9ecef;
+        }
+
+        .footer-content {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .footer-text {
+            color: #6c757d;
+            margin-bottom: 20px;
+        }
+
+        .footer-links {
+            display: flex;
+            gap: 30px;
+            justify-content: center;
+            margin-top: 30px;
+            flex-wrap: wrap;
+        }
+
+        .footer-links a {
+            color: #1a1a1a;
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.3s ease;
+        }
+
+        .footer-links a:hover {
+            color: #FF9933;
+        }
+
+        @media (max-width: 768px) {
+            .demo-container,
+            .tech-showcase {
+                grid-template-columns: 1fr;
+                gap: 30px;
+            }
+
+            .hero-stats {
+                gap: 20px;
+            }
+
+            .stat {
+                min-width: 120px;
+            }
+
+            .hackathon-gallery {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+    <div class="tri-stripe"></div>
+
+    <section class="hero">
+        <div class="hero-3d-container">
+            <canvas id="evm-3d-canvas"></canvas>
+        </div>
+        <div class="hero-content">
+            <div class="code-badge">PROJECT CODE: 57 | AVISHKAR ZONAL</div>
+            <h1>
+                Tamper-Proof <span class="gradient-text">Electronic Voting Machine</span>
+            </h1>
+            <p class="hero-subtitle">
+                Multi-modal biometric authentication with RFID verification and ranked-choice voting. 
+                Built for India's democratic future.
+            </p>
+            <div class="hero-stats">
+                <div class="stat">
+                    <span class="stat-number">₹10000</span>
+                    <span class="stat-label">Cost per Unit</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-number">99.9%</span>
+                    <span class="stat-label">Authentication Accuracy</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-number">3-Layer</span>
+                    <span class="stat-label">Security Protocol</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="main-video-section">
+        <div class="main-video-container">
+            <div class="main-video-header">
+                <h2 class="main-video-title">Complete Project Overview</h2>
+                <p class="main-video-desc">
+                    Watch our comprehensive demonstration showcasing the complete functionality, 
+                    security features, and innovative technology behind our tamper-proof EVM system.
+                </p>
+            </div>
+            <div class="video-wrapper">
+                <video 
+                    controls 
+                    preload="metadata"
+                    style="width: 100%; height: 100%;">
+                    <source src="main_video.mp4" type="video/mp4">
+                    Your browser does not support the video tag.
+                </video>
+            </div>
+        </div>
+
+        <div class="main-video-container">
+            <div class="video-grid" style="position: relative;">
+                <div class="video-card">
+                    <video 
+                        autoplay 
+                        muted 
+                        loop 
+                        playsinline 
+                        preload="auto">
+                        <source src="setup.mp4" type="video/mp4">
+                        Your browser does not support the video tag.
+                    </video>
+                    <div class="video-caption">Project demonstration at Avishkar</div>
+                </div>
+                
+                <div class="video-card">
+                    <video 
+                        autoplay 
+                        muted 
+                        loop 
+                        playsinline 
+                        preload="auto">
+                        <source src="explain.MOV" type="video/mp4">
+                        Your browser does not support the video tag.
+                    </video>
+                    <div class="video-caption">Live biometric authentication test</div>
+                </div>
+                
+                <div class="video-card">
+                    <video 
+                        autoplay 
+                        muted 
+                        loop 
+                        playsinline 
+                        preload="auto">
+                        <source src="demonstration.mp4" type="video/mp4">
+                        Your browser does not support the video tag.
+                    </video>
+                    <div class="video-caption">Explaining technical innovations</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section">
+        <div class="section-header">
+            <div class="section-tag">LIVE DEMONSTRATION</div>
+            <h2 class="section-title">See It In Action</h2>
+            <p class="section-desc">
+                Real-world testing of our voting system with ranked-choice selection
+            </p>
+        </div>
+
+        <div class="demo-section">
+            <div class="demo-container">
+                <div>
+                    <img src="https://media1.tenor.com/m/sqKxWZVJlRsAAAAd/election-voting-machine-candidates-name.gif" 
+                         alt="EVM Voting Demo" 
+                         class="demo-gif">
+                </div>
+                <div class="demo-text">
+                    <h3>Ranked-Choice Voting Interface</h3>
+                    <p>
+                        Our system implements India's first ranked-choice voting mechanism in an EVM. 
+                        Voters can rank candidates by preference, ensuring true majority support and 
+                        eliminating the "spoiler effect" common in first-past-the-post systems.
+                    </p>
+                    <ul class="feature-list">
+                        <li>Intuitive tap-to-rank interface</li>
+                        <li>Real-time visual feedback</li>
+                        <li>Accessible for all literacy levels</li>
+                        <li>Instant vote encryption and storage</li>
+                        <li>Complete audit trail maintained</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section">
+        <div class="section-header">
+            <div class="section-tag">HACKATHON SHOWCASE</div>
+            <h2 class="section-title">From Concept to Reality</h2>
+            <p class="section-desc">
+                Photos and moments from our Avishkar journey
+            </p>
+        </div>
+
+        <div class="hackathon-gallery">
+            <div class="gallery-item">
+                <img class="gallery-image" alt="Circuit Board Assembly" src="hardware.png">
+                <div class="gallery-caption">
+                    <h3>Hardware Assembly</h3>
+                    <p>Arduino Mega integrated with RFID reader, fingerprint sensor, and encryption chip</p>
+                </div>
+            </div>
+            <div class="gallery-item">
+                <img class="gallery-image" alt="Biometric Testing" src="aadhar.jpg">
+                <div class="gallery-caption">
+                    <h3>Biometric Authentication Testing</h3>
+                    <p>R307 fingerprint sensor achieving 99.9% accuracy in real-world conditions</p>
+                </div>
+            </div>
+            <div class="gallery-item">
+                <img class="gallery-image" alt="Team Presentation" src="Avishkar.jpeg">
+                <div class="gallery-caption">
+                    <h3>Avishkar Presentation</h3>
+                    <p>Demonstrating security features and cost-effectiveness to judges</p>
+                </div>
+            </div>
+            <div class="gallery-item">
+                <img class="gallery-image" alt="Voter Card" src="card_template.png">
+                <div class="gallery-caption">
+                    <h3>Voter Card</h3>
+                    <p>RFID can be implemented or QR-code based Voter ID like ABHA ID</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section">
+        <div class="section-header">
+            <div class="section-tag">TECHNICAL ARCHITECTURE</div>
+            <h2 class="section-title">System Design</h2>
+        </div>
+
+        <div class="tech-showcase">
+            <div class="circuit-diagram">
+                <p style="text-align: center; color: #6c757d; margin-bottom: 20px; font-weight: 600; font-size: 1.1rem;">
+                    Hardware Circuit Diagram
+                </p>
+                <img src="Hardware_label.png" alt="Hardware Circuit Diagram">
+            </div>
+            <div class="tech-specs">
+                <div class="spec-item">
+                    <div class="spec-icon">01</div>
+                    <div class="spec-content">
+                        <h4>Multi-Modal Authentication</h4>
+                        <p>RFID card + biometric fingerprint + optional Aadhaar integration for triple-layer security</p>
+                    </div>
+                </div>
+                <div class="spec-item">
+                    <div class="spec-icon">02</div>
+                    <div class="spec-content">
+                        <h4>Encrypted Data Storage</h4>
+                        <p>ATECC608 hardware encryption with 64GB microSD card for secure vote recording</p>
+                    </div>
+                </div>
+                <div class="spec-item">
+                    <div class="spec-icon">03</div>
+                    <div class="spec-content">
+                        <h4>Tamper Detection</h4>
+                        <p>Accelerometer-based physical interference detection with real-time alerts</p>
+                    </div>
+                </div>
+                <div class="spec-item">
+                    <div class="spec-icon">04</div>
+                    <div class="spec-content">
+                        <h4>Offline Operation</h4>
+                        <p>12V battery pack enables deployment in areas without reliable electricity</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="cta-section">
+        <h2 class="cta-title">Open Source. Transparent. Implementable.</h2>
+        <p class="cta-text">
+            Every line of code, every circuit diagram, every design decision is documented and available. 
+            This isn't just a prototype—it's a blueprint for democratic innovation.
+        </p>
+        <div class="button-group">
+            <a href="https://github.com/Grandlobster/EVM" class="btn btn-primary" target="_blank">View Source Code</a>
+            <a href="https://github.com/Grandlobster/EVM" class="btn btn-secondary" target="_blank">Technical Documentation</a>
+        </div>
+    </section>
+
+    <footer>
+        <div class="footer-content">
+            <p class="footer-text" style="font-weight: 600; font-size: 1.1rem; color: #1a1a1a;">
+                Tamper-Proof Electronic Voting Machine
+            </p>
+            <p class="footer-text">
+                Biometric & RFID Authentication | Ranked-Choice Voting | Hardware-Level Security
+            </p>
+            <p class="footer-text">Avishkar Zonal Selection 2024 | Project Code: 57</p>
+            <div class="footer-links">
+                <a href="https://github.com/Grandlobster/EVM" target="_blank">GitHub
